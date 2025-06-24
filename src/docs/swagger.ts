@@ -34,35 +34,23 @@ export const createSwaggerDocs = () => {
     .get('/mods', () => ({ success: true, data: [] }), {
       detail: {
         tags: ['mods'],
-        summary: 'List all available mods',
-        description: 'Retrieves a list of all available mods from the configured GitHub repository.',
+        summary: 'List all available mod IDs',
+        description: 'Retrieves a list of all available mod IDs from the configured GitHub repository. This endpoint is optimized for speed by pre-loading mod IDs on startup.',
         responses: {
           200: {
-            description: 'Successfully retrieved mods list',
+            description: 'Successfully retrieved mod IDs list',
             content: {
               'application/json': {
                 schema: t.Object({
                   success: t.Literal(true),
-                  data: t.Array(t.Object({
-                    id: t.String(),
-                    name: t.String(),
-                    description: t.String(),
-                    author: t.String(),
-                    clientVersionUpload: t.String(),
-                    fileVersion: t.Number()
-                  }))
+                  data: t.Array(t.String())
                 }),
                 example: {
                   success: true,
                   data: [
-                    {
-                      id: 'bloxstrap-theme-old',
-                      name: 'Bloxstrap theme (old)',
-                      description: 'This mod changes the Roblox UI by giving it the old Bloxstrap gradient.',
-                      author: 'TheKliko',
-                      clientVersionUpload: 'version-33609a8a482e4108',
-                      fileVersion: 677
-                    }
+                    'bloxstrap-theme-old',
+                    'another-mod',
+                    'cool-ui-mod'
                   ]
                 }
               }

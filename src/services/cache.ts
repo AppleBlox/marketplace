@@ -1,8 +1,25 @@
 import type { ModInfo, CachedMod } from '../types'
 import { config } from '../config'
 
+export enum CacheTaskStatus {
+  PENDING = 'pending',
+  IN_PROGRESS = 'in_progress', 
+  COMPLETED = 'completed',
+  FAILED = 'failed'
+}
+
+export interface CacheTask {
+  modId: string
+  status: CacheTaskStatus
+  startedAt: number
+  completedAt?: number
+  error?: string
+  assetsCount?: number
+}
+
 export class ModsCache {
   private cache = new Map<string, CachedMod>()
+  private cacheTasks = new Map<string, CacheTask>()
   
   isCached(modId: string): boolean {
     const cached = this.cache.get(modId)
@@ -33,5 +50,30 @@ export class ModsCache {
       }
     }
     return new Map(this.cache)
+  }
+  
+  // Cache task management
+  getCacheTask(modId: string): CacheTask | null {
+    return this.cacheTasks.get(modId) || null
+  }
+  
+  setCacheTask(modId: string, task: CacheTask): void {
+    this.cacheTasks.set(modId, task)
+  }
+  
+  updateCacheTask(modId: string, updates: Partial<CacheTask>): void {
+    const task = this.cacheTasks.get(modId)
+    if (task) {
+      Object.assign(task, updates)
+    }
+  }
+  
+  removeCacheTask(modId: string): void {
+    this.cacheTasks.delete(modId)
+  }
+  
+  isBeingCached(modId: string): boolean {
+    const task = this.cacheTasks.get(modId)
+    return task?.status === CacheTaskStatus.IN_PROGRESS
   }
 }

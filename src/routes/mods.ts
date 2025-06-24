@@ -1,31 +1,74 @@
 import { Elysia } from 'elysia'
 import type { CacheStatus, CachedMod } from '../types'
-import { ModsCache } from '../services/cache'
+import { ModsCache, CacheTaskStatus } from '../services/cache'
 import { GitHubService } from '../services/github'
 import { PLACEHOLDER_IMAGE } from '../utils/constants'
 
 export const createModsRoutes = (cache: ModsCache, github: GitHubService) => {
+  
+  // Background caching function
+  const cacheModInBackground = async (modId: string) => {
+    try {
+      console.log(`Starting background caching for mod: ${modId}`)
+      
+      cache.updateCacheTask(modId, { 
+        status: CacheTaskStatus.IN_PROGRESS 
+      })
+      
+      const [info, image, assets] = await Promise.all([
+        github.getModInfo(modId),
+        github.getModImage(modId),
+        github.getModAssets(modId)
+      ])
+      
+      if (!info) {
+        cache.updateCacheTask(modId, {
+          status: CacheTaskStatus.FAILED,
+          error: 'Mod not found',
+          completedAt: Date.now()
+        })
+        return
+      }
+      
+      console.log(`Background caching completed for ${modId}: ${assets.size} assets`)
+      
+      const cachedMod: CachedMod = {
+        info,
+        assets,
+        image,
+        cachedAt: Date.now()
+      }
+      
+      cache.set(modId, cachedMod)
+      cache.updateCacheTask(modId, {
+        status: CacheTaskStatus.COMPLETED,
+        assetsCount: assets.size,
+        completedAt: Date.now()
+      })
+      
+      // Clean up the task after successful completion
+      setTimeout(() => {
+        cache.removeCacheTask(modId)
+      }, 30000) // Remove task info after 30 seconds
+      
+    } catch (error) {
+      console.error(`Background caching failed for mod ${modId}:`, error)
+      cache.updateCacheTask(modId, {
+        status: CacheTaskStatus.FAILED,
+        error: error instanceof Error ? error.message : 'Unknown error',
+        completedAt: Date.now()
+      })
+    }
+  }
+
   return new Elysia({ prefix: '/mods' })
     .get('/', async () => {
       try {
-        const modIds = await github.getModsList()
-        const mods = []
-        
-        for (const modId of modIds) {
-          const cached = cache.get(modId)
-          if (cached) {
-            mods.push(cached.info)
-          } else {
-            const info = await github.getModInfo(modId)
-            if (info) {
-              mods.push(info)
-            }
-          }
-        }
+        const modIds = github.getLoadedModIds()
         
         return {
           success: true,
-          data: mods
+          data: modIds
         }
       } catch (error) {
         console.error('Error in /mods endpoint:', error)
@@ -101,6 +144,7 @@ export const createModsRoutes = (cache: ModsCache, github: GitHubService) => {
       try {
         const { id } = params
         
+        // Check if already cached
         if (cache.isCached(id)) {
           const cached = cache.get(id)!
           return {
@@ -108,6 +152,7 @@ export const createModsRoutes = (cache: ModsCache, github: GitHubService) => {
             message: 'Mod already cached',
             data: {
               modId: id,
+              status: 'completed',
               cached: true,
               assetsCount: cached.assets.size,
               cachedAt: cached.cachedAt
@@ -115,43 +160,102 @@ export const createModsRoutes = (cache: ModsCache, github: GitHubService) => {
           }
         }
         
-        const [info, image, assets] = await Promise.all([
-          github.getModInfo(id),
-          github.getModImage(id),
-          github.getModAssets(id)
-        ])
-        
-        if (!info) {
+        // Check if currently being cached
+        if (cache.isBeingCached(id)) {
+          const task = cache.getCacheTask(id)!
           return {
-            success: false,
-            error: 'Mod not found'
+            success: true,
+            message: 'Mod is currently being cached',
+            data: {
+              modId: id,
+              status: task.status,
+              cached: false,
+              startedAt: task.startedAt
+            }
           }
         }
         
-        const cachedMod: CachedMod = {
-          info,
-          assets,
-          image,
-          cachedAt: Date.now()
+        // Start background caching
+        const task = {
+          modId: id,
+          status: CacheTaskStatus.PENDING,
+          startedAt: Date.now()
         }
         
-        cache.set(id, cachedMod)
+        cache.setCacheTask(id, task)
+        
+        // Start the background process (don't await it)
+        cacheModInBackground(id)
         
         return {
           success: true,
-          message: 'Mod cached successfully',
+          message: 'Mod caching started in background',
           data: {
             modId: id,
-            cached: true,
-            assetsCount: assets.size,
-            cachedAt: cachedMod.cachedAt
+            status: 'pending',
+            cached: false,
+            startedAt: task.startedAt
           }
         }
       } catch (error) {
         console.error(`Error in /mods/${params.id}/cache endpoint:`, error)
         return {
           success: false,
-          error: 'Failed to cache mod'
+          error: 'Failed to start caching'
+        }
+      }
+    })
+    
+    .get('/:id/cache-status', async ({ params }) => {
+      try {
+        const { id } = params
+        
+        // Check if fully cached
+        if (cache.isCached(id)) {
+          const cached = cache.get(id)!
+          return {
+            success: true,
+            data: {
+              modId: id,
+              status: 'completed',
+              cached: true,
+              assetsCount: cached.assets.size,
+              cachedAt: cached.cachedAt
+            }
+          }
+        }
+        
+        // Check if being cached
+        const task = cache.getCacheTask(id)
+        if (task) {
+          return {
+            success: true,
+            data: {
+              modId: id,
+              status: task.status,
+              cached: false,
+              startedAt: task.startedAt,
+              completedAt: task.completedAt,
+              error: task.error,
+              assetsCount: task.assetsCount
+            }
+          }
+        }
+        
+        // Not cached and no task
+        return {
+          success: true,
+          data: {
+            modId: id,
+            status: 'not_cached',
+            cached: false
+          }
+        }
+      } catch (error) {
+        console.error(`Error in /mods/${params.id}/cache-status endpoint:`, error)
+        return {
+          success: false,
+          error: 'Failed to get cache status'
         }
       }
     })
@@ -177,6 +281,15 @@ export const createModsRoutes = (cache: ModsCache, github: GitHubService) => {
               cachedAt: cached.cachedAt
             }
           } else {
+            const task = cache.getCacheTask(modId)
+            if (task) {
+              return {
+                modId,
+                cached: false,
+                status: task.status,
+                startedAt: task.startedAt
+              }
+            }
             return {
               modId,
               cached: false
