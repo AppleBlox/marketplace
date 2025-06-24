@@ -1,0 +1,8 @@
+{
+  "id": "klikos-mod",
+  "name": "Kliko's mod",
+  "author": "TheKliko",
+  "description": "This mod changes the Roblox UI by giving it a red-pink gradient.\n\n- Gradient: #990000 -> #FF006E (45°)\n- Menu icons\n- Avatar editor\n- Skybox\n- Controller, VR and High-Res support",
+  "clientVersionUpload": "version-33609a8a482e4108",
+  "fileVersion": 677
+}
