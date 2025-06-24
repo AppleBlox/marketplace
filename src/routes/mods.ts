@@ -1,4 +1,5 @@
 import { Elysia } from 'elysia'
+import path from 'path'
 import type { CacheStatus, CachedMod } from '../types'
 import { ModsCache, CacheTaskStatus } from '../services/cache'
 import { GitHubService } from '../services/github'
@@ -310,9 +311,17 @@ export const createModsRoutes = (cache: ModsCache, github: GitHubService) => {
       }
     })
     
-    .get('/:id/assets/:filename', async ({ params, set }) => {
+    .get('/:id/assets/*', async ({ params, set, request }) => {
       try {
-        const { id, filename } = params
+        const { id } = params
+        
+        // Extract the full path after /assets/
+        const url = new URL(request.url)
+        const pathParts = url.pathname.split('/')
+        const assetsIndex = pathParts.findIndex(part => part === 'assets')
+        const filename = pathParts.slice(assetsIndex + 1).join('/')
+        
+        console.log(`Asset request: ${id} -> ${filename}`)
         
         const cached = cache.get(id)
         if (!cached) {
@@ -325,6 +334,8 @@ export const createModsRoutes = (cache: ModsCache, github: GitHubService) => {
         
         const asset = cached.assets.get(filename)
         if (!asset) {
+          console.log(`Asset not found: ${filename}`)
+          console.log(`Available assets: ${Array.from(cached.assets.keys()).slice(0, 5).join(', ')}...`)
           set.status = 404
           return {
             success: false,
@@ -333,12 +344,12 @@ export const createModsRoutes = (cache: ModsCache, github: GitHubService) => {
         }
         
         set.headers['Content-Type'] = 'application/octet-stream'
-        set.headers['Content-Disposition'] = `attachment; filename="${filename}"`
+        set.headers['Content-Disposition'] = `attachment; filename="${path.basename(filename)}"`
         set.headers['Cache-Control'] = 'public, max-age=3600'
         
         return asset
       } catch (error) {
-        console.error(`Error in /mods/${params.id}/assets/${params.filename} endpoint:`, error)
+        console.error(`Error in asset download endpoint:`, error)
         set.status = 500
         return {
           success: false,
