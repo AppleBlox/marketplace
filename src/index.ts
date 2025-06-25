@@ -29,17 +29,20 @@ async function startServer() {
 
     // Combine both apps and start server
     new Elysia()
+      .get('/', () => 'View the documentation at /docs')
       .use(swaggerDocs)  // Swagger at /docs
       .use(apiRoutes)    // API at /api/v1
       .listen(config.server.port, () => {
         console.log(`Marketplace API is running on port ${config.server.port}`)
         console.log(`Swagger documentation available at: http://localhost:${config.server.port}/docs`)
         console.log(`Available endpoints:`)
-        console.log(`  GET  /api/v1/mods - List all mods`)
+        console.log(`  GET  / - Root endpoint with documentation link`)
+        console.log(`  GET  /api/v1/mods - List all mods with full information`)
         console.log(`  GET  /api/v1/mods/:id - Get mod info`)
         console.log(`  GET  /api/v1/mods/:id/image - Get mod image`)
         console.log(`  POST /api/v1/mods/:id/cache - Cache mod assets`)
-        console.log(`  POST /api/v1/mods/cache-status - Check cache status`)
+        console.log(`  GET  /api/v1/mods/:id/cache-status - Check cache status for specific mod`)
+        console.log(`  POST /api/v1/mods/cache-status - Check cache status for multiple mods`)
         console.log(`  GET  /api/v1/mods/:id/assets - List cached assets`)
         console.log(`  GET  /api/v1/mods/:id/assets/:filename - Download asset`)
         console.log(`  GET  /api/v1/health - Health check`)

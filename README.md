@@ -38,11 +38,13 @@ As a mod creator, you can add your own mods to this API by making a pull request
 
 ## API Endpoints
 
-- `GET /api/v1/mods` - List all mods
+- `GET /` - Root endpoint with documentation link
+- `GET /api/v1/mods` - List all mods with full information
 - `GET /api/v1/mods/:id` - Get mod info
 - `GET /api/v1/mods/:id/image` - Get mod image
 - `POST /api/v1/mods/:id/cache` - Cache mod assets
-- `POST /api/v1/mods/cache-status` - Check cache status
+- `GET /api/v1/mods/:id/cache-status` - Check cache status for specific mod
+- `POST /api/v1/mods/cache-status` - Check cache status for multiple mods
 - `GET /api/v1/mods/:id/assets` - List cached assets
 - `GET /api/v1/mods/:id/assets/:filename` - Download asset
 - `GET /api/v1/health` - Health check

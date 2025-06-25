@@ -67,9 +67,25 @@ export const createModsRoutes = (cache: ModsCache, github: GitHubService) => {
       try {
         const modIds = github.getLoadedModIds()
         
+        // Fetch all mod information
+        const modsData = await Promise.all(
+          modIds.map(async (id) => {
+            const cached = cache.get(id)
+            if (cached) {
+              return cached.info
+            }
+            
+            const modInfo = await github.getModInfo(id)
+            return modInfo
+          })
+        )
+        
+        // Filter out any null results
+        const validMods = modsData.filter(mod => mod !== null)
+        
         return {
           success: true,
-          data: modIds
+          data: validMods
         }
       } catch (error) {
         console.error('Error in /mods endpoint:', error)

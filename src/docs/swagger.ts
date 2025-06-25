@@ -19,6 +19,10 @@ export const createSwaggerDocs = () => {
         ],
         tags: [
           {
+            name: 'root',
+            description: 'Root endpoint'
+          },
+          {
             name: 'mods',
             description: 'Mod management and asset operations'
           },
@@ -30,27 +34,59 @@ export const createSwaggerDocs = () => {
       }
     }))
     
-    // List all mods
+    // Root endpoint
+    .get('/', () => 'View the documentation at /docs', {
+      detail: {
+        tags: ['root'],
+        summary: 'Root endpoint with documentation link',
+        description: 'Returns a simple message directing users to the API documentation.',
+        responses: {
+          200: {
+            description: 'Documentation link message',
+            content: {
+              'text/plain': {
+                schema: { type: 'string' },
+                example: 'View the documentation at /docs'
+              }
+            }
+          }
+        }
+      }
+    })
+    
+    // List all mods with full information
     .get('/mods', () => ({ success: true, data: [] }), {
       detail: {
         tags: ['mods'],
-        summary: 'List all available mod IDs',
-        description: 'Retrieves a list of all available mod IDs from the configured GitHub repository. This endpoint is optimized for speed by pre-loading mod IDs on startup.',
+        summary: 'List all mods with full information',
+        description: 'Retrieves a list of all available mods with their complete mod.json information from the configured GitHub repository.',
         responses: {
           200: {
-            description: 'Successfully retrieved mod IDs list',
+            description: 'Successfully retrieved mods list with full information',
             content: {
               'application/json': {
                 schema: t.Object({
                   success: t.Literal(true),
-                  data: t.Array(t.String())
+                  data: t.Array(t.Object({
+                    id: t.String(),
+                    name: t.String(),
+                    description: t.String(),
+                    author: t.String(),
+                    clientVersionUpload: t.String(),
+                    fileVersion: t.Number()
+                  }))
                 }),
                 example: {
                   success: true,
                   data: [
-                    'bloxstrap-theme-old',
-                    'another-mod',
-                    'cool-ui-mod'
+                    {
+                      id: 'bloxstrap-theme-old',
+                      name: 'Bloxstrap theme (old)',
+                      description: 'This mod changes the Roblox UI by giving it the old Bloxstrap gradient.',
+                      author: 'TheKliko',
+                      clientVersionUpload: 'version-33609a8a482e4108',
+                      fileVersion: 677
+                    }
                   ]
                 }
               }
@@ -203,7 +239,7 @@ export const createSwaggerDocs = () => {
                   message: t.String(),
                   data: t.Object({
                     modId: t.String(),
-                    cached: t.Literal(true),
+                    cached: t.Boolean(),
                     assetsCount: t.Number(),
                     cachedAt: t.Number()
                   })
@@ -232,6 +268,59 @@ export const createSwaggerDocs = () => {
                 example: {
                   success: false,
                   error: 'Mod not found'
+                }
+              }
+            }
+          }
+        }
+      }
+    })
+    
+    // Check cache status for specific mod
+    .get('/mods/:id/cache-status', ({ params }) => ({ 
+      success: true, 
+      data: { modId: params.id, cached: false }
+    }), {
+      detail: {
+        tags: ['mods'],
+        summary: 'Check cache status for a specific mod',
+        description: 'Checks the cache status for a specific mod, including ongoing cache tasks.',
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Unique mod identifier'
+          }
+        ],
+        responses: {
+          200: {
+            description: 'Cache status retrieved successfully',
+            content: {
+              'application/json': {
+                schema: t.Object({
+                  success: t.Literal(true),
+                  data: t.Object({
+                    modId: t.String(),
+                    cached: t.Boolean(),
+                    status: t.Optional(t.String()),
+                    assetsCount: t.Optional(t.Number()),
+                    cachedAt: t.Optional(t.Number()),
+                    startedAt: t.Optional(t.Number()),
+                    completedAt: t.Optional(t.Number()),
+                    error: t.Optional(t.String())
+                  })
+                }),
+                example: {
+                  success: true,
+                  data: {
+                    modId: 'bloxstrap-theme-old',
+                    cached: true,
+                    status: 'completed',
+                    assetsCount: 15,
+                    cachedAt: 1703123456789
+                  }
                 }
               }
             }
@@ -272,8 +361,10 @@ export const createSwaggerDocs = () => {
                   data: t.Array(t.Object({
                     modId: t.String(),
                     cached: t.Boolean(),
+                    status: t.Optional(t.String()),
                     assetsCount: t.Optional(t.Number()),
-                    cachedAt: t.Optional(t.Number())
+                    cachedAt: t.Optional(t.Number()),
+                    startedAt: t.Optional(t.Number())
                   }))
                 }),
                 example: {
