@@ -19,7 +19,7 @@ bun install
 As a mod creator, you can add your own mods to this API by making a pull request to the repo.
 
 1. Fork the repo
-2. Create a folder in `/mods` with the id of your mod (ex: my-awesome-mod)
+2. Create a folder in `/mods` with the **id of your mod (ex: my-awesome-mod)** (this is important)
 3. In this folder, add a `mod.json` file like so (you can modify these values):
 ```json
 {
