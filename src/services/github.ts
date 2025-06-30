@@ -6,7 +6,9 @@ export class GitHubService {
   private loadedModIds: string[] = []
   
   private async fetchFromGitHub(path: string): Promise<any> {
-    const response = await fetch(`${this.baseUrl}/repos/${config.github.owner}/${config.github.repo}/contents/${path}`, {
+    const encodedPath = path.split('/').map(segment => encodeURIComponent(segment)).join('/')
+    
+    const response = await fetch(`${this.baseUrl}/repos/${config.github.owner}/${config.github.repo}/contents/${encodedPath}`, {
       headers: {
         'Authorization': `Bearer ${config.github.token}`,
         'Accept': 'application/vnd.github.v3+json'
@@ -40,7 +42,6 @@ export class GitHubService {
   }
   
   async getModsList(): Promise<string[]> {
-    // Return the pre-loaded mod IDs
     return this.getLoadedModIds()
   }
   
@@ -57,10 +58,24 @@ export class GitHubService {
   
   async getModImage(modId: string): Promise<Buffer | null> {
     try {
+      console.log(`Fetching image for mod: ${modId}`)
+      
       const imageData = await this.fetchFromGitHub(`mods/${modId}/mod.png`)
-      return Buffer.from(imageData.content, 'base64')
+      
+      if (!imageData.content) {
+        console.error(`Image file mod.png for mod ${modId} has no content`)
+        return null
+      }
+      
+      const buffer = Buffer.from(imageData.content, 'base64')
+      console.log(`Successfully loaded image for mod ${modId}: ${buffer.length} bytes`)
+      
+      return buffer
     } catch (error) {
       console.error(`Error fetching mod image for ${modId}:`, error)
+      if (error instanceof Error) {
+        console.error(`Error details: ${error.message}`)
+      }
       return null
     }
   }
